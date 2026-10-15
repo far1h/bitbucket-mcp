@@ -117,7 +117,7 @@ Instead of putting credentials in your MCP client config, you can save them once
 npx -y bitbucket-mcp@latest auth login
 ```
 
-It prompts for the API URL, default workspace and credentials (secrets are not echoed), verifies them against Bitbucket Cloud, and saves them to a file only your user can read:
+It prompts for your workspace, Atlassian email and API token / app password (the secret is not echoed), verifies them against Bitbucket Cloud, and saves them to a file only your user can read:
 
 - macOS/Linux: `~/.config/bitbucket-mcp/credentials.json` (or `$XDG_CONFIG_HOME/bitbucket-mcp/`)
 - Windows: `%APPDATA%\bitbucket-mcp\credentials.json`
@@ -141,6 +141,8 @@ Environment variables (and `.env`) still take precedence over stored credentials
 bitbucket-mcp auth status   # show stored credentials (secrets masked)
 bitbucket-mcp auth logout   # delete stored credentials
 bitbucket-mcp auth login --workspace acme --username you@example.com --password <token>  # non-interactive
+bitbucket-mcp auth login --workspace acme --token <access-token>                        # Bearer access token
+bitbucket-mcp auth login --url https://bitbucket.example.com/rest/api/1.0 ...               # self-hosted
 ```
 
 ### Creating a Bitbucket App Password

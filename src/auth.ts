@@ -246,12 +246,13 @@ Commands:
   status   Show where credentials are stored and which are in use
   logout   Delete stored credentials
 
-Login options (skip the matching prompt):
-  --url <url>            API base URL (default: ${DEFAULT_BITBUCKET_URL})
-  --workspace <slug>     Default workspace
-  --username <email>     Atlassian account email (basic auth)
-  --password <secret>    API token / app password (basic auth)
-  --token <secret>       Access token (Bearer auth)
+Login prompts for workspace, Atlassian email and API token / app password.
+Options (skip the matching prompt):
+  --workspace <slug>     Bitbucket workspace
+  --username <email>     Atlassian account email
+  --password <secret>    API token / app password
+  --token <secret>       Access token (Bearer auth) instead of email + password
+  --url <url>            API base URL for self-hosted (default: ${DEFAULT_BITBUCKET_URL})
   --no-verify            Save without checking against Bitbucket
 `;
 
@@ -277,33 +278,26 @@ async function loginWith(
   const scripted = !!(str("token") || str("username") || str("password"));
 
   const creds: StoredCredentials = {};
-  creds.url =
-    str("url") ??
-    (scripted
-      ? existing.url || DEFAULT_BITBUCKET_URL
-      : await ask("Bitbucket API URL", { defaultValue: existing.url || DEFAULT_BITBUCKET_URL }));
-  creds.workspace =
-    str("workspace") ??
-    (scripted
-      ? existing.workspace
-      : (await ask("Default workspace (optional)", { defaultValue: existing.workspace })) || undefined);
+  // Self-hosted / custom API URLs are set with --url; no prompt needed for Cloud
+  creds.url = str("url") ?? existing.url ?? DEFAULT_BITBUCKET_URL;
+
+  creds.workspace = str("workspace") ?? (scripted ? existing.workspace : undefined);
+  for (let attempt = 0; !scripted && !creds.workspace && attempt < 3; attempt++) {
+    creds.workspace =
+      (await ask("Bitbucket workspace", { defaultValue: existing.workspace })) || undefined;
+  }
+  if (!scripted && !creds.workspace) {
+    console.error("A workspace is required; nothing saved.");
+    return 1;
+  }
 
   if (str("token")) {
     creds.token = str("token");
-  } else if (str("username") || str("password")) {
-    creds.username = str("username") ?? (await ask("Atlassian email", { defaultValue: existing.username }));
-    creds.password = str("password") ?? (await ask("API token / app password", { hidden: true }));
   } else {
-    const method = await ask(
-      "Auth method: 1) email + API token/app password  2) access token",
-      { defaultValue: existing.token ? "2" : "1" }
-    );
-    if (method === "2") {
-      creds.token = await ask("Access token", { hidden: true });
-    } else {
-      creds.username = await ask("Atlassian email", { defaultValue: existing.username });
-      creds.password = await ask("API token / app password", { hidden: true });
-    }
+    creds.username =
+      str("username") ?? (await ask("Atlassian email", { defaultValue: existing.username }));
+    creds.password =
+      str("password") ?? (await ask("API token / app password", { hidden: true }));
   }
 
   if (!creds.token && !(creds.username && creds.password)) {
